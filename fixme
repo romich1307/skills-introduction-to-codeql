@@ -1,30 +1,30 @@
-
 from flask import request, render_template, make_response
-
 from server.webapp import flaskapp, cursor
 from server.models import Book
 
-
 @flaskapp.route('/')
 def index():
-    name = request.args.get('name')
-    author = request.args.get('author')
-    read = bool(request.args.get('read'))
-
+    name = request.args.get('name', '').strip()
+    author = request.args.get('author', '').strip()
+    read = request.args.get('read')
+    
+    query = "SELECT name, author, read FROM books WHERE 1=1"
+    params = {}
+    
     if name:
-        cursor.execute(
-            "SELECT * FROM books WHERE name LIKE :name", {'name': f"%{name}%"}
-        )
-        books = [Book(*row) for row in cursor]
-
-    elif author:
-        cursor.execute(
-            "SELECT * FROM books WHERE author LIKE :author", {'author': f"%{author}%"}
-        )
-        books = [Book(*row) for row in cursor]
-
-    else:
-        cursor.execute("SELECT name, author, read FROM books")
-        books = [Book(*row) for row in cursor]
-
+        query += " AND name LIKE :name"
+        params['name'] = f"%{name}%"
+    
+    if author:
+        query += " AND author LIKE :author"
+        params['author'] = f"%{author}%"
+    
+    if read is not None:
+        query += " AND read = :read"
+        params['read'] = 1 if read.lower() == 'true' else 0
+    
+    cursor.execute(query, params)
+    books = [Book(*row) for row in cursor.fetchall()]
+    
     return render_template('books.html', books=books)
+
